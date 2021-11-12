@@ -11,25 +11,45 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from controllers.FileNavigator import FileNavigator
 from functools import partial
-from controllers.Styler import Styler
+import controllers.Styler as Stylers
 
 
 class Ui_MainWindow(object):
+    this_window = None
     navigator = None
+    itens = []
+    selected_item = None
 
     def clear_content(self, layout):
         while layout.count():
             child = layout.takeAt(0)
             if child.widget() is not None:
+                layout.removeWidget(child.widget())
                 child.widget().deleteLater()
             elif child.layout() is not None:
-                self.clearTasks(child.layout(), None)
+                self.clear_content(child.layout(), None)
+
+        self.itens = []
+        self.selected_item = None
 
     def change_path(self):
         new_path = self.pathBar.text()
 
-        if self.navigator.goTo(new_path):
+        if self.navigator.go_to(new_path):
             self.load_content()
+        else:
+            self.pathBar.setText(self.navigator.current_directory)
+            QtWidgets.QMessageBox.critical(self.this_window, 'Erro', 'Caminho inexistente')
+
+    def make_item_selected(self, item, event):
+        if item not in self.itens:
+            return self.load_content()
+
+        if self.selected_item is not None:
+            self.selected_item.styler.content_gets_idle()
+
+        self.selected_item = item
+        self.selected_item.styler.content_select()
 
     def go(self, name, content_type, event):
         full_path = self.navigator.get_full_path(name)
@@ -57,14 +77,14 @@ class Ui_MainWindow(object):
 
         for c in self.navigator.show_content():
             self.content_frame = QtWidgets.QFrame()
+            self.content_frame.styler = Stylers.ItemStyler(self.content_frame)
             self.content_frame.setFixedSize(QtCore.QSize(200, 100))
-            self.content_frame.setStyleSheet(Styler.content_idle)
-            self.content_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-            self.content_frame.setFrameShadow(QtWidgets.QFrame.Raised)
-            self.content_frame.setObjectName("content_frame")
+            self.content_frame.setStyleSheet(self.content_frame.styler.content_idle)
+            self.content_frame.setObjectName("content_frame_{}_{}".format(x, y))
             self.content_frame.mouseDoubleClickEvent = partial(self.go, c['name'], c['type'])
-            self.content_frame.enterEvent = partial(Styler.content_mouse_enter, self.content_frame)
-            self.content_frame.leaveEvent = partial(Styler.content_mouse_leave, self.content_frame)
+            self.content_frame.mousePressEvent = partial(self.make_item_selected, self.content_frame)
+            self.content_frame.enterEvent = partial(self.content_frame.styler.content_mouse_enter)
+            self.content_frame.leaveEvent = partial(self.content_frame.styler.content_mouse_leave)
             self.content_symbol = QtWidgets.QLabel(self.content_frame)
             self.content_symbol.setGeometry(QtCore.QRect(16, 12, 61, 71))
             self.content_symbol.setStyleSheet('border: None')
@@ -77,6 +97,7 @@ class Ui_MainWindow(object):
             self.content_name.setText(c['name'])
             self.content_name.setObjectName("content_name")
             self.directoriesLayout.addWidget(self.content_frame, x, y)
+            self.itens.append(self.content_frame)
 
             x += 1
 
@@ -84,7 +105,8 @@ class Ui_MainWindow(object):
                 x = 0
                 y += 1
 
-    def setupUi(self, MainWindow):
+    def setup_ui(self, MainWindow):
+        self.this_window = MainWindow
         self.navigator = FileNavigator()
 
         MainWindow.setObjectName("MainWindow")
@@ -103,17 +125,17 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setPointSize(20)
         self.backNavigator.setFont(font)
-        self.backNavigator.setStyleSheet(Styler.navigator_idle)
         self.backNavigator.setAlignment(QtCore.Qt.AlignCenter)
         self.backNavigator.setObjectName("backNavigator")
 
         self.pathBar = QtWidgets.QLineEdit(self.centralwidget)
         self.pathBar.setGeometry(QtCore.QRect(70, 30, 701, 31))
         self.pathBar.setObjectName("pathBar")
+        self.pathBar.setStyleSheet("color: rgb(150, 150, 150); border: 1px solid rgb(0, 0, 0)")
 
         self.scrollableArea = QtWidgets.QScrollArea(self.centralwidget)
         self.scrollableArea.setGeometry(QtCore.QRect(10, 89, 761, 481))
-        self.scrollableArea.setStyleSheet("background-color: rgb(121, 121, 121);")
+        self.scrollableArea.setStyleSheet("background-color: rgb(200, 200, 200);")
         self.scrollableArea.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
         self.scrollableArea.setWidgetResizable(True)
         self.scrollableArea.setObjectName("scrollableArea")
@@ -125,15 +147,13 @@ class Ui_MainWindow(object):
 
         self.directoriesLayout = QtWidgets.QGridLayout(self.directoriesContentArea)
         self.directoriesLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
-        self.directoriesLayout.setContentsMargins(50, 0, 50, 0)
+        self.directoriesLayout.setContentsMargins(10, 0, 50, 0)
         self.directoriesLayout.setObjectName("directoriesLayout")
 
         self.scrollableArea.setWidget(self.directoriesContentArea)
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.pathBar.editingFinished.connect(partial(self.change_path))
-        self.backNavigator.enterEvent = partial(Styler.navigator_mouse_enter, self.backNavigator)
-        self.backNavigator.leaveEvent = partial(Styler.navigator_mouse_leave, self.backNavigator)
         self.backNavigator.mousePressEvent = partial(self.back)
         self.load_content()
 
@@ -145,4 +165,3 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.backNavigator.setText(_translate("MainWindow", "<"))
         self.pathBar.setText(_translate("MainWindow", self.navigator.current_directory))
-

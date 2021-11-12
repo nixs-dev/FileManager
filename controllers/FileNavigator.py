@@ -89,20 +89,25 @@ class FileNavigator:
         else:
             return False
 
-    def goTo(self, path):
+    def go_to(self, path):
         if path[-1] != '/':
             path += '/'
 
-        self.current_directory = path
+        if os.path.isdir(path):
+            self.current_directory = path
 
-        return True
+            return True
+        else:
+            return False
 
     def back(self):
         splitted_directories = self.current_directory.split('/')
 
         if splitted_directories[-1] == '':
             splitted_directories.pop(-1)
-        splitted_directories.pop(-1)
+
+        if len(splitted_directories) > 1:
+            splitted_directories.pop(-1)
 
         self.current_directory = '/'.join(splitted_directories) + '/'
 
