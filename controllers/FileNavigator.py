@@ -1,6 +1,6 @@
-import os
+import os, shutil
 from PyQt5 import QtGui
-from subprocess import Popen
+
 
 class FileNavigator:
 
@@ -27,7 +27,7 @@ class FileNavigator:
     main_path = os.path.dirname(os.path.realpath(__file__)).replace('controllers', '')
 
     def __init__(self):
-        self.current_directory = 'C:/Users/x/Desktop/'
+        self.current_directory = os.environ['HOMEPATH'].replace('\\', '/') + '/Desktop/'
 
     def get_file_extension(self, file_):
         parts = file_.split('.')
@@ -48,7 +48,6 @@ class FileNavigator:
             program_used = self.exec_file[extension]
         except KeyError:
             program_used = self.exec_file['default']
-
 
         os.system('start {} "{}"'.format(program_used, file_))
 
@@ -112,3 +111,25 @@ class FileNavigator:
         self.current_directory = '/'.join(splitted_directories) + '/'
 
         return True
+
+    def rename_content(self, filename, new_name):
+        current_content_path = self.current_directory + filename
+        new_current_path = self.current_directory + new_name
+
+        try:
+            os.rename(current_content_path, new_current_path)
+        except FileNotFoundError:
+            print('O conteúdo já não existe mais')
+
+        return True
+
+    def delete_content(self, filename):
+        content_path = self.current_directory + filename
+
+        try:
+            if self.file_or_folder(content_path) == 'file':
+                os.remove(content_path)
+            else:
+                shutil.rmtree(content_path)
+        except FileNotFoundError:
+            print('O conteúdo já não existe mais')

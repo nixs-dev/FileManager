@@ -9,7 +9,8 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from controllers.FileNavigator import FileNavigator
+import controllers.FileNavigator as FileManager
+import views.SampleDialog as S_Dialog
 from functools import partial
 import controllers.Styler as Stylers
 
@@ -41,15 +42,18 @@ class Ui_MainWindow(object):
             self.pathBar.setText(self.navigator.current_directory)
             QtWidgets.QMessageBox.critical(self.this_window, 'Erro', 'Caminho inexistente')
 
-    def make_item_selected(self, item, event):
-        if item not in self.itens:
-            return self.load_content()
+    def make_item_selected(self, item, filename, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            if item not in self.itens:
+                return self.load_content()
 
-        if self.selected_item is not None:
-            self.selected_item.styler.content_gets_idle()
+            if self.selected_item is not None:
+                self.selected_item.styler.content_gets_idle()
 
-        self.selected_item = item
-        self.selected_item.styler.content_select()
+            self.selected_item = item
+            self.selected_item.styler.content_select()
+        else:
+            self.open_content_menu(item, filename, event.pos())
 
     def go(self, name, content_type, event):
         full_path = self.navigator.get_full_path(name)
@@ -68,6 +72,31 @@ class Ui_MainWindow(object):
         else:
             print('Algo deu errado')
 
+    def open_content_menu(self, content, filename, mouse_pos):
+        options = QtWidgets.QMenu(content)
+        delete = options.addAction('Deletar')
+        rename = options.addAction('Renomear')
+
+        parent_position = content.mapToGlobal(QtCore.QPoint(0, 0))
+        menu_position = parent_position + mouse_pos
+
+        options.setStyleSheet('color: #000000; border: 1px solid #000000;')
+        options.move(menu_position.x(), menu_position.y())
+
+        delete.triggered.connect(partial(self.make_content_change, options, self.navigator.delete_content, filename))
+        rename.triggered.connect(partial(self.make_content_change, options, self.navigator.rename_content, filename))
+
+        options.show()
+
+    def make_content_change(self, options_menu, method, filename):
+        if method == self.navigator.delete_content:
+            self.navigator.delete_content(filename)
+        if method == self.navigator.rename_content:
+            S_Dialog.SampleDialog(self.this_window, filename, method)
+
+        options_menu.close()
+        self.load_content()
+
     def load_content(self):
         max_per_row = 3
         x = 0
@@ -82,7 +111,7 @@ class Ui_MainWindow(object):
             self.content_frame.setStyleSheet(self.content_frame.styler.content_idle)
             self.content_frame.setObjectName("content_frame_{}_{}".format(x, y))
             self.content_frame.mouseDoubleClickEvent = partial(self.go, c['name'], c['type'])
-            self.content_frame.mousePressEvent = partial(self.make_item_selected, self.content_frame)
+            self.content_frame.mousePressEvent = partial(self.make_item_selected, self.content_frame, c['name'])
             self.content_frame.enterEvent = partial(self.content_frame.styler.content_mouse_enter)
             self.content_frame.leaveEvent = partial(self.content_frame.styler.content_mouse_leave)
             self.content_symbol = QtWidgets.QLabel(self.content_frame)
@@ -107,10 +136,10 @@ class Ui_MainWindow(object):
 
     def setup_ui(self, MainWindow):
         self.this_window = MainWindow
-        self.navigator = FileNavigator()
+        self.navigator = FileManager.FileNavigator()
 
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(800, 601)
+        MainWindow.setFixedSize(800, 601)
         MainWindow.setStyleSheet("background-color: rgb(255, 255, 255);")
 
         self.centralwidget = QtWidgets.QWidget(MainWindow)
