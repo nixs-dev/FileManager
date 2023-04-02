@@ -191,6 +191,6 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "File Manager"))
         self.backNavigator.setText(_translate("MainWindow", "<"))
         self.pathBar.setText(_translate("MainWindow", self.navigator.current_directory))
